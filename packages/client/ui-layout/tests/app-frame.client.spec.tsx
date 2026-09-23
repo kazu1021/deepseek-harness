@@ -284,7 +284,7 @@ describe('AppFrame normal width concessions', () => {
 
   it('permits a narrow first opening because the overlay sidebar never consumes track', () => {
     frameWidth = 800
-    const { frame, rightOwner } = mountFrame()
+    const { frame, instance, rightOwner } = mountFrame()
     // No toggle needed: sidebar overlay leaves the full 800px for column solve.
     expect(tracks(frame)).toEqual([0, 0])
     expect(rightOwner()).toEqual({ width: 360, viewportWidth: 800, canShow: true })
