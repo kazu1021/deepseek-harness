@@ -217,13 +217,12 @@ describe('prompt rejection through the assembled composer', () => {
     await runtime.mount({ inject: [...inject], apply })
     const view = runtime.renderRoot()
 
-    const composer = view.container.querySelector<HTMLDivElement>('[data-composer-input]')!
     // Write through the assembled input resolver (contenteditable change
     // events carry no value; the resolver is the public draft write path).
     const conversation = runtime.ctx.get('conversation') as { input: unknown }
     const shell = (conversation.input as InputHub).shell(SID)
     act(() => { shell.setDraft('do not lose this') })
-    fireEvent.keyDown(composer, { key: 'Enter' })
+    fireEvent.click(view.getByRole('button', { name: '发送消息' }))
     await waitFor(() => { expect(prompt).toHaveBeenCalledOnce() })
 
     await runtime.sessions.updateSessionSnapshot(SID, (draft) => {

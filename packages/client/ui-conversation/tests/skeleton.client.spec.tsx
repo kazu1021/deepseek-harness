@@ -400,11 +400,10 @@ describe('ConversationRoot resident composer', () => {
 
   it('keeps composer text in the machine, mirrors to the Conversation store, and submits through the sink', () => {
     const b = mount(sessionSnapshotOf())
-    const box = b.view.getByRole('textbox')
     expect(b.wiring.snapshot.draft).toBe('ordinary draft')
     act(() => { b.wiring.setDraft('ordinary revised') })
     expect(b.store.store.getSnapshot().draft).toBe('ordinary revised')
-    fireEvent.keyDown(box, { key: 'Enter' })
+    fireEvent.click(b.view.getByRole('button', { name: '发送消息' }))
     expect(b.sink).toHaveBeenCalledWith('ordinary revised', [], 'queue', expect.any(AbortSignal))
     expect((b.view.getByRole('button', { name: 'Child' }) as HTMLButtonElement).disabled).toBe(true)
     expect(b.view.queryByText('Root')).toBeNull()
