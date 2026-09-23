@@ -48,7 +48,9 @@ export function clampWidth(px: number, min: number, max: number): number {
  *   without that track may the center fall below its minimum, down to zero.
  */
 export function computeColumns(viewport: number, sidebar: number, rightbar: number): Columns {
-  const s = sidebar === 0 ? SIDEBAR_COLLAPSED : clampWidth(sidebar, SIDEBAR_MIN, SIDEBAR_MAX)
+  // Closed sidebar contributes 0 track width; the frame overlays the panel
+  // (see AppFrame) instead of reserving the old 56px icon rail.
+  const s = sidebar === 0 ? 0 : clampWidth(sidebar, SIDEBAR_MIN, SIDEBAR_MAX)
   const available = viewport - s - CENTER_MIN
   const r = rightbar === 0 || available < RIGHTBAR_MIN
     ? 0

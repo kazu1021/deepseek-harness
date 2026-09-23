@@ -15,7 +15,7 @@ describe('computeColumns', () => {
   })
 
   it('keeps only the left rail when both panels are closed', () => {
-    expect(computeColumns(1920, 0, 0)).toEqual({ sidebar: 56, center: 1864, rightbar: 0 })
+    expect(computeColumns(1920, 0, 0)).toEqual({ sidebar: 0, center: 1920, rightbar: 0 })
   })
 
   it('clamps sidebar preferences and limits the right panel to 70% of the frame', () => {
@@ -29,12 +29,15 @@ describe('computeColumns', () => {
     [1120, 420, 300, 400],
     [1119, 420, 0, 699],
     [1024, 420, 0, 604],
-    [756, 0, 300, 400],
-    [755, 0, 0, 699],
-    [455, 0, 0, 399],
-    [20, 0, 0, 0],
+    // sidebar 0 is true zero track (overlay); thresholds shift vs the old 56px rail
+    [756, 0, 356, 400],
+    [755, 0, 355, 400],
+    [700, 0, 300, 400],
+    [699, 0, 0, 699],
+    [455, 0, 0, 455],
+    [20, 0, 0, 20],
   ])('solves frame %i and sidebar %i to right %i and center %i', (viewport, sidebar, rightbar, center) => {
-    expect(computeColumns(viewport, sidebar, 864)).toEqual({ sidebar: sidebar || 56, center, rightbar })
+    expect(computeColumns(viewport, sidebar, 864)).toEqual({ sidebar: sidebar || 0, center, rightbar })
   })
 
   it('does not reduce the wide sidebar to keep a normal right panel open', () => {

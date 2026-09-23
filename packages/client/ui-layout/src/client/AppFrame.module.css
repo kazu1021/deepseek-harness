@@ -23,14 +23,65 @@
 }
 
 .sidebarCol {
+  z-index: 30;
+  grid-column: 1;
+  position: absolute;
+  inset: 0 auto 0 0;
   min-width: 0;
   overflow: hidden;
   background: var(--dsw-specific-sidebar-fill);
   border-right: 0.5px solid var(--dsw-alias-border-l3);
 }
 
+/* Closed overlay sidebar: keep mounted (visibility, NOT display:none) so
+   focus/state survive; pointer-events none so the center column receives hits. */
+.frame[data-sidebar-collapsed] .sidebarCol {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sidebarBackdrop {
+  z-index: 20;
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  cursor: default;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.frame:not([data-sidebar-collapsed]) .handle[data-side=sidebar] {
+  z-index: 31;
+}
+
+.menuButton {
+  z-index: 31;
+  box-sizing: border-box;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 18px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.menuButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
 .centerCol {
+  grid-column: 2;
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -82,6 +133,7 @@
  * where it is. The occupant draws its own left border.
  */
 .rightbarCol {
+  grid-column: 3;
   position: relative;
   min-width: 0;
   overflow: visible;

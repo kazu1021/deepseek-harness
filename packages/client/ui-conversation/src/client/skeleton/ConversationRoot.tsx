@@ -312,7 +312,7 @@ export function ConversationRoot({
         },
         onClose: () => { setPickerOpen(false) },
       })}
-      {renderSlot('conversation.hero.agentPreset', {})}
+      {/* Ported from working npx UI: hide hero agentPreset chrome. */}
     </div>
   )
 

@@ -11,11 +11,22 @@ export const LOCALE_PREFERENCE_FIELD = 'preference'
 /** Accepted BCP 47-style language ids. */
 export const LOCALE_ID_PATTERN = /^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/u
 
-/** Locale identifiers shipped by the browser client. */
-export const LOCALE_IDS = ['zh', 'en'] as const
+/** Locale identifiers shipped by the browser client (picker + catalog order). */
+export const LOCALE_IDS = ['ja', 'zh', 'en'] as const
 
 /** Locale identifier shipped by the browser client. */
 export type BuiltInLocaleId = typeof LOCALE_IDS[number]
+
+/**
+ * Locales that every typed namespace registration must ship complete
+ * dictionaries for. Japanese rides a partial overlay ({@link JAPANESE_COPY}
+ * equivalent) registered separately so feature packages keep bilingual
+ * `{ zh, en }` registrations.
+ */
+export const COMPLETE_LOCALE_IDS = ['zh', 'en'] as const
+
+/** Locale id required in every typed dictionary registration. */
+export type CompleteLocaleId = typeof COMPLETE_LOCALE_IDS[number]
 
 /** Open locale identifier accepted from language-pack plugins. */
 export type LocaleId = string

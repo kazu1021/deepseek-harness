@@ -5,8 +5,8 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { LOCALE_SETTINGS_NAMESPACE, LocaleSettingsSchema } from './locale-settings.ts'
 
 export {
-  LOCALE_IDS, LOCALE_PREFERENCE_FIELD, LOCALE_SETTINGS_NAMESPACE,
-  type BuiltInLocaleId, type LocaleId, type LocaleSettings,
+  LOCALE_IDS, COMPLETE_LOCALE_IDS, LOCALE_PREFERENCE_FIELD, LOCALE_SETTINGS_NAMESPACE,
+  type BuiltInLocaleId, type CompleteLocaleId, type LocaleId, type LocaleSettings,
 } from './locale-settings.ts'
 
 /**
