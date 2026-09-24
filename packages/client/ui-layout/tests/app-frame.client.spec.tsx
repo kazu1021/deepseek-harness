@@ -305,12 +305,18 @@ describe('AppFrame normal width concessions', () => {
   it('shrinks the right panel to 300px, drops its track, and only then squeezes center', () => {
     const { frame, instance, rightOwner } = mountFrame()
     // Overlay sidebar: track width stays 0, so rightbar sees the full frame.
+    // Template carries the 70% ratio-clamped preference; rightOwner is resolved width.
     act(() => { instance.actions.setSidebar(420); instance.actions.openRightbar(true, false) })
     resize(1200)
-    expect(tracks(frame)).toEqual([0, 800])
+    expect(tracks(frame)).toEqual([0, 840])
     expect(rightOwner()).toEqual({ width: 800, viewportWidth: 1200, canShow: true })
     resize(700)
-    expect(tracks(frame)).toEqual([0, 300])
+    {
+      const track = tracks(frame)
+      expect(track[0]).toBe(0)
+      expect(Math.round(track[1] ?? Number.NaN)).toBe(490)
+    }
+    expect(rightOwner()).toEqual({ width: 300, viewportWidth: 700, canShow: true })
     resize(699)
     expect(tracks(frame)).toEqual([0, 0])
     expect(rightOwner()).toEqual({ width: 0, viewportWidth: 699, canShow: false })
@@ -560,8 +566,9 @@ describe('AppFrame pointer resizing', () => {
     act(() => { instance.actions.openRightbar(true, false) })
     resize(1100)
     const handle = handleFor(frame, 'rightbar')
+    // Overlay: resolved width 700; template max is 70% of 1100 (=770) until preference shrinks.
     expect(rightOwner().width).toBe(700)
-    expect(tracks(frame)[1]).toBe(700)
+    expect(tracks(frame)[1]).toBe(770)
     expect(handle.style.left).toBe('400px')
     drag(handle, 400, 410)
     expect(instance.getSnapshot().layoutInfo.rightbar).toBe(690)

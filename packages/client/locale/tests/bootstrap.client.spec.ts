@@ -28,7 +28,8 @@ describe('native locale initialization', () => {
     const host = stubConfigForm<LocaleSettings>()
     try {
       const locale = new LocaleRuntime(ctx, host.scope, { languages: ['ja-JP', 'zh-Hant', 'en-US'], preference: null })
-      expect(locale.getSnapshot().active).toBe('zh')
+      // ja ships in the built-in catalog, so ja-JP resolves to ja (not zh).
+      expect(locale.getSnapshot().active).toBe('ja')
       expect(host.set).not.toHaveBeenCalled()
       locale.setLocale('en')
       expect(host.set).toHaveBeenCalledExactlyOnceWith('preference', 'en')
@@ -44,7 +45,8 @@ describe('native locale initialization', () => {
       expect(locale.getSnapshot().active).toBe('en')
       locale.register('native-test', 'en', {})
       expect(locale.getSnapshot().active).toBe('en')
-      locale.addLanguage({ id: 'ja', label: '日本語', fallback: 'en' })
+      // ja is built-in; register a non-catalog language instead.
+      locale.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' })
       expect(locale.getSnapshot().active).toBe('en')
     } finally {
       await ctx.fiber.dispose()
@@ -54,10 +56,11 @@ describe('native locale initialization', () => {
   it('keeps an external preference pending until its language registers', async () => {
     const ctx = new Context()
     try {
-      const locale = new LocaleRuntime(ctx, undefined, { languages: ['zh-CN'], preference: 'ja' })
+      // Pending preference for a not-yet-registered language (ko is not built-in).
+      const locale = new LocaleRuntime(ctx, undefined, { languages: ['zh-CN'], preference: 'ko' })
       expect(locale.getSnapshot().active).toBe('zh')
-      const remove = locale.addLanguage({ id: 'ja', label: '日本語', fallback: 'en' })
-      expect(locale.getSnapshot().active).toBe('ja')
+      const remove = locale.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' })
+      expect(locale.getSnapshot().active).toBe('ko')
       remove()
       expect(locale.getSnapshot().active).toBe('zh')
     } finally {

@@ -14,8 +14,12 @@ describe('computeColumns', () => {
     expect(computeColumns(1920, 280, 864)).toEqual({ sidebar: 280, center: 776, rightbar: 864 })
   })
 
-  it('keeps only the left rail when both panels are closed', () => {
-    expect(computeColumns(1920, 0, 0)).toEqual({ sidebar: 0, center: 1920, rightbar: 0 })
+  it('keeps the default icon rail when both panels are closed', () => {
+    expect(computeColumns(1920, 0, 0)).toEqual({ sidebar: 56, center: 1864, rightbar: 0 })
+  })
+
+  it('keeps a true-zero track when collapsedWidth is 0 (overlay callers)', () => {
+    expect(computeColumns(1920, 0, 0, 0)).toEqual({ sidebar: 0, center: 1920, rightbar: 0 })
   })
 
   it('clamps sidebar preferences and limits the right panel to 70% of the frame', () => {
@@ -29,7 +33,7 @@ describe('computeColumns', () => {
     [1120, 420, 300, 400],
     [1119, 420, 0, 699],
     [1024, 420, 0, 604],
-    // sidebar 0 is true zero track (overlay); thresholds shift vs the old 56px rail
+    // overlay: pass collapsedWidth 0 so sidebar 0 is true zero track
     [756, 0, 356, 400],
     [755, 0, 355, 400],
     [700, 0, 300, 400],
@@ -37,7 +41,7 @@ describe('computeColumns', () => {
     [455, 0, 0, 455],
     [20, 0, 0, 20],
   ])('solves frame %i and sidebar %i to right %i and center %i', (viewport, sidebar, rightbar, center) => {
-    expect(computeColumns(viewport, sidebar, 864)).toEqual({ sidebar: sidebar || 0, center, rightbar })
+    expect(computeColumns(viewport, sidebar, 864, 0)).toEqual({ sidebar: sidebar || 0, center, rightbar })
   })
 
   it('does not reduce the wide sidebar to keep a normal right panel open', () => {
@@ -50,7 +54,7 @@ describe('computeColumns', () => {
   })
 
   it('leaves a closed right track closed when the frame widens', () => {
-    expect(computeColumns(755, 0, 0).rightbar).toBe(0)
-    expect(computeColumns(1920, 0, 0).rightbar).toBe(0)
+    expect(computeColumns(755, 0, 0, 0).rightbar).toBe(0)
+    expect(computeColumns(1920, 0, 0, 0).rightbar).toBe(0)
   })
 })
