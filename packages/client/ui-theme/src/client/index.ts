@@ -164,7 +164,7 @@ const THEME_BROWSER_STORAGE_KEY = 'dsh.ui-theme.preference'
  * Read a memory-host theme preference from localStorage.
  * Host-backed scopes ignore the browser store (Host document is authoritative).
  */
-function readBrowserThemePreference(host: SettingsScope<ThemeSettings>): ThemePreference {
+function readBrowserThemePreference(host: ConfigForm<ThemeSettings>): ThemePreference {
   if (host.getSnapshot().mode !== 'memory') return DEFAULT_PREFERENCE
   try {
     const preference = localStorage.getItem(THEME_BROWSER_STORAGE_KEY)
@@ -176,9 +176,9 @@ function readBrowserThemePreference(host: SettingsScope<ThemeSettings>): ThemePr
 
 /**
  * Persist a memory-host theme preference to localStorage.
- * Host-backed scopes write through {@link SettingsScope.set} instead.
+ * Host-backed scopes write through {@link ConfigForm.set} instead.
  */
-function saveBrowserThemePreference(host: SettingsScope<ThemeSettings>, preference: ThemePreference): void {
+function saveBrowserThemePreference(host: ConfigForm<ThemeSettings>, preference: ThemePreference): void {
   if (host.getSnapshot().mode !== 'memory') return
   try {
     localStorage.setItem(THEME_BROWSER_STORAGE_KEY, preference)
