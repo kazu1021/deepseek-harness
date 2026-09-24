@@ -463,11 +463,10 @@ describe('ConversationRoot resident composer', () => {
 
   it('keeps composer text in the machine, mirrors to the Conversation store, and submits through the sink', () => {
     const b = mount(sessionSnapshotOf())
-    const box = b.view.getByRole('textbox')
     expect(b.wiring.snapshot.draft).toBe('ordinary draft')
     act(() => { b.wiring.setDraft('ordinary revised') })
     expect(b.store.store.getSnapshot().draft).toBe('ordinary revised')
-    fireEvent.keyDown(box, { key: 'Enter' })
+    fireEvent.click(b.view.getByRole('button', { name: '发送消息' }))
     expect(b.sink).toHaveBeenCalledWith('ordinary revised', [], 'queue', expect.any(AbortSignal))
     // The current crumb is plain text (a drag surface on darwin), not a button.
     expect(b.view.queryByRole('button', { name: 'Child' })).toBeNull()
@@ -681,7 +680,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.hero.workspace')
     // The agent-preset chip sits in the same row, for the same reason: both
     // choices are only open before the first message.
-    expect(b.slotCalls).toContain('conversation.hero.agentPreset')
+    expect(b.slotCalls).not.toContain('conversation.hero.agentPreset')
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

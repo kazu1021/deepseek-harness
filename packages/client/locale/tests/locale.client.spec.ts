@@ -186,36 +186,36 @@ describe('LocaleRuntime', () => {
     const host = stubConfigForm<LocaleSettings>()
     const { svc, events } = make(host)
     svc.register('ns', 'en', { hello: 'Hello' })
-    svc.register('ns', 'JA', { hello: 'こんにちは' })
-    const dispose = svc.addLanguage({ id: 'ja', label: '日本語', fallback: 'EN' })
-    expect(svc.getLocale().locales).toContainEqual({ id: 'ja', label: '日本語', fallback: 'en' })
+    svc.register('ns', 'KO', { hello: '안녕하세요' })
+    const dispose = svc.addLanguage({ id: 'ko', label: '한국어', fallback: 'EN' })
+    expect(svc.getLocale().locales).toContainEqual({ id: 'ko', label: '한국어', fallback: 'en' })
 
-    svc.setLocale('JA')
-    expect(svc.getLocale().active).toBe('ja')
-    expect(svc.bind('ns')('hello')).toBe('こんにちは')
-    expect(host.set).toHaveBeenCalledWith('preference', 'ja')
+    svc.setLocale('KO')
+    expect(svc.getLocale().active).toBe('ko')
+    expect(svc.bind('ns')('hello')).toBe('안녕하세요')
+    expect(host.set).toHaveBeenCalledWith('preference', 'ko')
 
     dispose()
     expect(svc.getLocale().active).toBe('zh')
-    expect(svc.getLocale().locales.map(locale => locale.id)).toEqual(['zh', 'en'])
+    expect(svc.getLocale().locales.map(locale => locale.id)).toEqual(['ja', 'zh', 'en'])
     expect(svc.bind('ns')('hello')).toBe('Hello')
     const revision = svc.getLocale().revision
     dispose()
     expect(svc.getLocale().revision).toBe(revision)
-    expect(events.map(snapshot => snapshot.active)).toEqual(['ja', 'zh'])
+    expect(events.map(snapshot => snapshot.active)).toEqual(['ko', 'zh'])
   })
 
   it('uses fallback copy until a language dictionary registers later', () => {
     const { svc } = make()
     svc.register('ns', 'en', { hello: 'Hello' })
-    svc.addLanguage({ id: 'ja', label: '日本語', fallback: 'en' })
-    svc.setLocale('ja')
+    svc.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' })
+    svc.setLocale('ko')
     expect(svc.bind('ns')('hello')).toBe('Hello')
 
     const revision = svc.getLocale().revision
-    svc.register('ns', 'ja', { hello: 'こんにちは' })
+    svc.register('ns', 'ko', { hello: '안녕하세요' })
     expect(svc.getLocale().revision).toBe(revision + 1)
-    expect(svc.bind('ns')('hello')).toBe('こんにちは')
+    expect(svc.bind('ns')('hello')).toBe('안녕하세요')
   })
 
   it('rejects duplicate and malformed locale definitions', () => {
@@ -273,18 +273,19 @@ describe('LocaleRuntime', () => {
       .toThrow('locale fallback "fr" is not registered')
     expect(() => svc.addLanguage({ id: 'fr', label: 'Français', fallback: 'fr-CA' }))
       .toThrow('fallback cycle')
-    expect(svc.getLocale().locales.map(locale => locale.id)).toEqual(['zh', 'en', 'fr-CA'])
+    expect(svc.getLocale().locales.map(locale => locale.id)).toEqual(['ja', 'zh', 'en', 'fr-CA'])
   })
 
   it('adopts a saved external locale when its definition registers later', () => {
     const host = stubConfigForm<LocaleSettings>()
     const { svc, events } = make(host)
-    host.publish({ status: 'ready', value: { preference: 'ja' }, revision: 1, writable: true })
+    host.publish({ status: 'ready', value: { preference: 'ko' }, revision: 1, writable: true })
+    // ko is not registered yet — stay on the browser-derived provisional (zh).
     expect(svc.getLocale().active).toBe('zh')
 
-    svc.addLanguage({ id: 'ja', label: '日本語', fallback: 'en' })
-    expect(svc.getLocale().active).toBe('ja')
-    expect(events.map(snapshot => snapshot.active)).toEqual(['ja'])
+    svc.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' })
+    expect(svc.getLocale().active).toBe('ko')
+    expect(events.map(snapshot => snapshot.active)).toEqual(['ko'])
     expect(host.set).not.toHaveBeenCalled()
   })
 
@@ -388,9 +389,10 @@ describe('LocaleRuntime', () => {
     expect(svc.bind('ns2')('onlyZh')).toBe('onlyZh')
   })
 
-  it('starts with exactly the two shipped locales and their fallback relation', () => {
+  it('starts with the shipped locales and their fallback relation', () => {
     const { svc } = make()
     expect(svc.getLocale().locales).toEqual([
+      { id: 'ja', label: '日本語', fallback: 'en' },
       { id: 'zh', label: '中文', fallback: 'en' },
       { id: 'en', label: 'English' },
     ])

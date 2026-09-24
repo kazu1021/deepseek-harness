@@ -12,14 +12,19 @@
    meet at the column edge. The rows add up to it — 10px top inset, the 30px
    title row, the tab strip's 10px margin, a 16px tab line, and its 9px bottom
    inset — so no row below may grow past its figure. */
+/* Compact header (ported from working npx UI): zero-height chrome; tabs and
+   headerCorner float over the conversation surface. */
 .header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   flex: none;
   box-sizing: border-box;
-  min-height: 76px;
-  padding: 10px 28px 0 20px;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  position: relative;
 }
 
 .header:where(:not(:has(.tabs))) {
@@ -63,29 +68,14 @@
 
 .titleRow {
   grid-column: 2;
-  /* Anonymous inline-size container (CSS modules hash container-names per
-     module, so occupants match the nearest container): header occupants such
-     as the preset label and slot actions shed their text at row-width
-     breakpoints. The minmax(0, 1fr) column sizes the row, so inline-size
-     containment cannot collapse it. */
-  container-type: inline-size;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  min-height: 30px;
-  /* Clears the frame's window-chrome band (traffic lights + shell.leading
-     controls, ui-layout AppFrame) when it is published; the header already
-     pads 20px of it. Zero everywhere else (the fallback makes the max
-     negative). */
+  height: 0;
+  min-height: 0;
+  overflow: visible;
   padding-inline-start: max(0px, calc(var(--dsh-frame-leading-clearance, 0px) - 20px));
 }
 
 .titleCluster {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+  display: none;
 }
 
 /* The auto grid column collapses with an empty or CSS-hidden occupant.
@@ -154,50 +144,42 @@ button.crumb:hover {
 }
 
 .headerActions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
+  display: none;
 }
 
 .headerUtilities {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  margin-left: 20px;
+  display: none;
 }
 
 .headerUtilities:empty {
   display: none;
 }
 
-/* The far-right corner seat reaches 16px into the header's 28px right padding,
-   so its control sits past the utilities' edge; it is laid out only while its
-   occupant renders something. Its left margin equals the utilities' 8px gap so
-   the header's trailing controls space evenly. */
+/* Floating workspace/chrome corner (npx keeps conversation.session.header.corner). */
 .headerCorner {
+  z-index: 25;
   display: flex;
-  flex: none;
-  align-items: center;
-  margin-left: 8px;
-  margin-right: -16px;
+  margin: 0;
+  pointer-events: auto;
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 
 .headerCorner:empty {
   display: none;
 }
 
-/* figma Tab_Group 34:11441: 35px strip, gap 36, pad-left 8, tabs bottom-aligned.
-   Positioned above the header's own paint, so the active bar covers the rule. */
 .tabs {
   grid-column: 1 / -1;
-  position: relative;
-  z-index: 1;
+  z-index: 24;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
   display: flex;
-  gap: 36px;
-  margin-top: 10px;
-  padding-left: 8px;
+  position: absolute;
+  top: 10px;
+  left: 52px;
 }
 
 /* figma .Tab 34:11442: 13/16 text (figma wt510, rendered 500). The 2px bar

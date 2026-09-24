@@ -1,15 +1,16 @@
 /**
  * Composer keymap over the Lexical command layer: menu arbitration
- * (arrows/escape/enter), space adjudication, the Enter submit gesture, and
- * paste routing. Registered at CRITICAL priority so it decides before
- * @lexical/plain-text's own Enter/paste defaults; a handler returning false
- * falls through to those defaults (Shift+Enter's line break, ordinary
- * spaces, text paste the bar routes itself).
+ * (arrows/escape/enter), space adjudication, and paste routing. Registered at
+ * CRITICAL priority so it decides before @lexical/plain-text's own Enter/paste
+ * defaults; a handler returning false falls through to those defaults (plain
+ * Enter and Shift+Enter both insert a line break via Lexical, ordinary spaces,
+ * text paste the bar routes itself). Message submit is the Send button, not
+ * the Enter key.
  *
- * IME guard: a composition-closing Enter/Space must not submit or adjudicate.
- * KeyboardEvent.isComposing covers most engines; Safari delivers the closing
- * keydown AFTER compositionend, so a root-element composition watch holds the
- * guard for 10ms more (the old textarea's proven window); keyCode
+ * IME guard: a composition-closing Enter/Space must not adjudicate or break
+ * the line. KeyboardEvent.isComposing covers most engines; Safari delivers the
+ * closing keydown AFTER compositionend, so a root-element composition watch
+ * holds the guard for 10ms more (the old textarea's proven window); keyCode
  * 229 is the legacy signal engines emit without isComposing.
  * The root's composition attribute suppresses placeholders until both the
  * native composition and the editor's final text reconciliation finish.
@@ -30,9 +31,9 @@ export interface ComposerKeymapHandlers {
   space(): boolean
   /** Dismiss the popupSelect shell (Escape layering: an open overlay closes first). */
   dismissPopup(): void
-  /** Whether Enter may submit right now (locked/busy states refuse). */
+  /** Reserved for bar-supplied submit gating (Send button owns submit; Enter no longer calls this). */
   canSubmit(): boolean
-  /** The Enter gesture after every guard passed; `accelerated` = Ctrl/Cmd held. */
+  /** Reserved for bar-supplied submit (`accelerated` = Ctrl/Cmd). Enter no longer calls this. */
   submit(accelerated: boolean): void
   /**
    * Pasted files with directory metadata supplied by the clipboard entry API.
@@ -137,21 +138,18 @@ export function registerComposerKeymap(editor: LexicalEditor, handlers: Composer
       // the IME guard so a composition-closing Shift+Enter still breaks the line.
       if (event?.shiftKey === true) return false
       if (event !== null && isComposingEvent(event, recentlyComposing)) {
-        // The IME consumes this Enter (candidate pick); neither submit nor
-        // break the line. No preventDefault: the browser owns the gesture.
+        // The IME consumes this Enter (candidate pick); neither newline nor
+        // menu pick. No preventDefault: the browser owns the gesture.
         return true
       }
       // Menu-open Enter picks the highlight through arbitration; a
-      // no-highlight menu passes down to the submit gesture.
+      // no-highlight menu (and every ordinary Enter, including Ctrl/Cmd) falls
+      // through to Lexical plain-text's newline default.
       if (handlers.arbitrate('enter', false) !== 'pass') {
         event?.preventDefault()
         return true
       }
-      event?.preventDefault()
-      if (event?.repeat === true) return true // held-down Enter must not machine-gun sends
-      if (!handlers.canSubmit()) return true
-      handlers.submit(event?.ctrlKey === true || event?.metaKey === true)
-      return true
+      return false
     }, COMMAND_PRIORITY_CRITICAL),
     editor.registerCommand(PASTE_COMMAND, (event) => {
       // Duck-typed: the payload union includes InputEvent, and test engines

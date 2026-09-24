@@ -44,7 +44,35 @@ describe('keymap keydown routing', () => {
     expect(second.hasAttribute('data-composer-composing')).toBe(false)
   })
 
-  it('routes Enter to the keymap submit handler', () => {
+  it('lets plain Enter and Ctrl/Cmd+Enter fall through (newline; no submit)', () => {
+    const editor = createEditor({ namespace: 'keymap-routing', onError: (e) => { throw e } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    editor.setRootElement(root)
+    registerPlainText(editor)
+    const submit = vi.fn()
+    const arbitrate = vi.fn(() => 'pass' as const)
+    registerComposerKeymap(editor, {
+      arbitrate,
+      space: () => false,
+      dismissPopup: () => {},
+      canSubmit: () => true,
+      submit,
+      intakeFiles: () => {},
+      pasteText: () => {},
+    })
+    // Returning true from fireEvent.keyDown means the browser default was NOT prevented —
+    // Lexical plain-text then inserts the newline.
+    expect(fireEvent.keyDown(root, { key: 'Enter' })).toBe(true)
+    expect(fireEvent.keyDown(root, { key: 'Enter', metaKey: true })).toBe(true)
+    expect(fireEvent.keyDown(root, { key: 'Enter', ctrlKey: true })).toBe(true)
+    expect(fireEvent.keyDown(root, { key: 'Enter', shiftKey: true })).toBe(true)
+    expect(submit).not.toHaveBeenCalled()
+    expect(arbitrate).toHaveBeenCalledWith('enter', false)
+  })
+
+  it('keeps IME composition Enter from inserting a newline or submitting', () => {
     const editor = createEditor({ namespace: 'keymap-routing', onError: (e) => { throw e } })
     const root = document.createElement('div')
     root.contentEditable = 'true'
@@ -61,10 +89,36 @@ describe('keymap keydown routing', () => {
       intakeFiles: () => {},
       pasteText: () => {},
     })
-    fireEvent.keyDown(root, { key: 'Enter' })
-    expect(submit).toHaveBeenCalledWith(false)
-    fireEvent.keyDown(root, { key: 'Enter', metaKey: true })
-    expect(submit).toHaveBeenCalledWith(true)
+    fireEvent.compositionStart(root)
+    // Handler returns true (consumed) without preventDefault — fireEvent still reports true
+    // when default is not prevented; assert submit never fires and arbitrate is skipped.
+    fireEvent.keyDown(root, { key: 'Enter', isComposing: true })
+    fireEvent.keyDown(root, { key: 'Enter', keyCode: 229 })
+    expect(submit).not.toHaveBeenCalled()
+  })
+
+  it('menu-open Enter still arbitrates and does not submit', () => {
+    const editor = createEditor({ namespace: 'keymap-routing', onError: (e) => { throw e } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    editor.setRootElement(root)
+    registerPlainText(editor)
+    const submit = vi.fn()
+    const arbitrate = vi.fn(() => 'pick-highlighted' as const)
+    registerComposerKeymap(editor, {
+      arbitrate,
+      space: () => false,
+      dismissPopup: () => {},
+      canSubmit: () => true,
+      submit,
+      intakeFiles: () => {},
+      pasteText: () => {},
+    })
+    const allowed = fireEvent.keyDown(root, { key: 'Enter' })
+    expect(arbitrate).toHaveBeenCalledWith('enter', false)
+    expect(allowed).toBe(false) // preventDefault fired for the menu pick
+    expect(submit).not.toHaveBeenCalled()
   })
 
   it('routes Tab through arbitration and passes when unconsumed', () => {

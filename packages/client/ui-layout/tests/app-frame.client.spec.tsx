@@ -203,7 +203,7 @@ describe('AppFrame', () => {
 
   it('renders owner props for the default sidebar and prospective right panel', () => {
     const { frame, rightOwner, sidebarOwner, slotCalls } = mountFrame()
-    expect(tracks(frame)).toEqual([280, 0])
+    expect(tracks(frame)).toEqual([0, 0])
     expect(sidebarOwner()).toEqual({ collapsed: false, width: 280 })
     expect(rightOwner()).toEqual({ width: 864, viewportWidth: 1920, canShow: true })
     expect(slotCalls.find(c => c.key === 'main')).toEqual({ key: 'main', props: {}, options: { entryKey: 'conversation' } })
@@ -215,7 +215,7 @@ describe('AppFrame', () => {
     expect(getByTestId('main-content').getAttribute('data-entry-key')).toBe('conversation')
     expect(getByTestId('sidebar-content')).toBeTruthy()
     expect(getByTestId('rightbar-content')).toBeTruthy()
-    expect(tracks(frame)).toEqual([280, 0])
+    expect(tracks(frame)).toEqual([0, 0])
   })
 
   it('renders both occupants before workspace baselines settle', () => {
@@ -241,11 +241,11 @@ describe('AppFrame', () => {
     }
   })
 
-  it('keeps the closed sidebar mounted at its 56px rail without a handle', () => {
+  it('keeps the closed overlay sidebar mounted at 0 width without a handle', () => {
     const { frame, instance, sidebarOwner, getByTestId, queryByTestId } = mountFrame()
     act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)).toEqual([56, 0])
-    expect(sidebarOwner()).toEqual({ collapsed: true, width: 56 })
+    expect(tracks(frame)).toEqual([0, 0])
+    expect(sidebarOwner()).toEqual({ collapsed: true, width: 0 })
     expect(getByTestId('sidebar-content')).toBeTruthy()
     expect(frame.querySelector('[data-side="sidebar"]')).toBeNull()
     // The rail keeps the window chrome housed: no shell.leading seat.
@@ -283,7 +283,7 @@ describe('AppFrame', () => {
       // The deepened conversation drag band keys off this frame marker.
       expect(frame.hasAttribute('data-panel-conversation')).toBe(panelId === null)
       expect(instance.getSnapshot().layoutInfo).toBe(layoutInfo)
-      expect(tracks(frame)).toEqual([280, 0])
+      expect(tracks(frame)).toEqual([0, 0])
       expect(selectedSession).toBe(sessionId)
       expect(document.title).toBe(panelId === null ? 'Session title — DSH Local Build' : 'DSH Local Build')
     }
@@ -304,75 +304,79 @@ describe('AppFrame normal width concessions', () => {
 
   it('shrinks the right panel to 300px, drops its track, and only then squeezes center', () => {
     const { frame, instance, rightOwner } = mountFrame()
+    // Overlay sidebar: track width stays 0, so rightbar sees the full frame.
     act(() => { instance.actions.setSidebar(420); instance.actions.openRightbar(true, false) })
     resize(1200)
-    // The template carries the ratio-clamped preference; the panel (rightOwner
-    // width) reports the resolved squeeze.
-    expect(tracks(frame)).toEqual([420, 840])
-    expect(rightOwner()).toEqual({ width: 380, viewportWidth: 1200, canShow: true })
-    resize(1120)
-    expect(tracks(frame)).toEqual([420, 784])
-    resize(1119)
-    expect(tracks(frame)).toEqual([420, 0])
-    expect(rightOwner()).toEqual({ width: 0, viewportWidth: 1119, canShow: false })
+    expect(tracks(frame)).toEqual([0, 800])
+    expect(rightOwner()).toEqual({ width: 800, viewportWidth: 1200, canShow: true })
+    resize(700)
+    expect(tracks(frame)).toEqual([0, 300])
+    resize(699)
+    expect(tracks(frame)).toEqual([0, 0])
+    expect(rightOwner()).toEqual({ width: 0, viewportWidth: 699, canShow: false })
     expect(frame.querySelector('[data-side="rightbar"]')).toBeNull()
     expect(instance.getSnapshot().layoutInfo).toMatchObject({ rightbarShown: true, rightbar: 864 })
     act(() => { instance.actions.closeRightbar() })
     resize(455)
-    expect(tracks(frame)).toEqual([56, 0])
+    expect(tracks(frame)).toEqual([0, 0])
     resize(1920)
-    expect(tracks(frame)).toEqual([420, 0])
+    expect(tracks(frame)).toEqual([0, 0])
   })
 
-  it('uses the post-collapse left rail to permit a narrow first opening', () => {
+  it('permits a narrow first opening because the overlay sidebar never consumes track', () => {
     frameWidth = 800
     const { frame, instance, rightOwner } = mountFrame()
-    act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)).toEqual([280, 0])
-    expect(rightOwner()).toEqual({ width: 344, viewportWidth: 800, canShow: true })
+    // No toggle needed: sidebar overlay leaves the full 800px for column solve.
+    expect(tracks(frame)).toEqual([0, 0])
+    expect(rightOwner()).toEqual({ width: 360, viewportWidth: 800, canShow: true })
     act(() => { instance.actions.openRightbar(true, false) })
-    expect(tracks(frame)).toEqual([56, 360])
-    expect(instance.getSnapshot().layoutInfo).toMatchObject({ narrowExpanded: false, rightbar: 360 })
+    expect(tracks(frame)).toEqual([0, 360])
+    expect(instance.getSnapshot().layoutInfo).toMatchObject({ rightbar: 360 })
     expect(rightOwner().canShow).toBe(true)
   })
 
-  it.each([[756, 300, true], [755, 0, false]] as const)('reports eligibility at %ipx', (width, rightbar, canShow) => {
+  it.each([[700, 300, true], [699, 0, false]] as const)('reports eligibility at %ipx', (width, rightbar, canShow) => {
     frameWidth = width
-    const { instance, rightOwner } = mountFrame()
-    act(() => { instance.actions.toggleSidebar() })
+    const { rightOwner } = mountFrame()
     expect(rightOwner()).toEqual({ width: rightbar, viewportWidth: width, canShow })
   })
 
-  it('does not anticipate another left collapse after the right panel is already shown', () => {
+  it('keeps rightbar eligible at narrow widths because overlay sidebar uses no track', () => {
     frameWidth = 800
     const { instance, rightOwner } = mountFrame()
     act(() => { instance.actions.openRightbar(true, false); instance.actions.toggleSidebar() })
-    expect(rightOwner().canShow).toBe(false)
+    expect(rightOwner().canShow).toBe(true)
   })
 
   it('auto-collapses only below 1024px and preserves the wide sidebar preference', () => {
-    const { frame, instance } = mountFrame()
+    const { frame, instance, sidebarOwner } = mountFrame()
     act(() => { instance.actions.setSidebar(400) })
     resize(1024)
-    expect(tracks(frame)[0]).toBe(400)
+    // Overlay grid track is always 0; preference/owner width carry the rail state.
+    expect(tracks(frame)[0]).toBe(0)
+    expect(sidebarOwner()).toEqual({ collapsed: false, width: 400 })
     resize(1023)
-    expect(tracks(frame)[0]).toBe(56)
+    expect(tracks(frame)[0]).toBe(0)
+    expect(sidebarOwner().collapsed).toBe(true)
+    expect(sidebarOwner().width).toBe(0)
     act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)[0]).toBe(400)
+    expect(sidebarOwner()).toEqual({ collapsed: false, width: 400 })
     resize(980)
-    expect(tracks(frame)[0]).toBe(400)
+    expect(sidebarOwner()).toEqual({ collapsed: false, width: 400 })
     act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)[0]).toBe(56)
+    expect(sidebarOwner().collapsed).toBe(true)
+    expect(sidebarOwner().width).toBe(0)
     resize(1920)
-    expect(tracks(frame)[0]).toBe(400)
+    expect(sidebarOwner()).toEqual({ collapsed: false, width: 400 })
   })
 
   it('re-expands a wide-closed sidebar at the default width while narrow', () => {
-    const { frame, instance } = mountFrame()
+    const { frame, instance, sidebarOwner } = mountFrame()
     act(() => { instance.actions.toggleSidebar() })
     resize(980)
     act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)[0]).toBe(280)
+    expect(tracks(frame)[0]).toBe(0)
+    expect(sidebarOwner()).toEqual({ collapsed: false, width: 280 })
     expect(instance.getSnapshot().layoutInfo.sidebar).toBe(0)
   })
 })
@@ -381,9 +385,9 @@ describe('AppFrame right panel presentation', () => {
   it('releases the fullscreen track with the instant marker while clearing fullscreen', () => {
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.openRightbar(true, true) })
-    expect(tracks(frame)).toEqual([280, 864])
+    expect(tracks(frame)).toEqual([0, 864])
     act(() => { instance.actions.closeRightbar() })
-    expect(tracks(frame)).toEqual([280, 0])
+    expect(tracks(frame)).toEqual([0, 0])
     expect(frame.dataset.rightbarFullscreen).toBeUndefined()
     expect(frame.dataset.rightbarInstant).toBe('true')
     expect(frame.querySelector('[data-side="rightbar"]')).toBeNull()
@@ -395,11 +399,11 @@ describe('AppFrame right panel presentation', () => {
     const { frame, instance } = mountFrame()
     act(() => { instance.actions.openRightbar(true, true) })
     act(() => { instance.actions.openRightbar(true, false) })
-    expect(tracks(frame)).toEqual([280, 864])
+    expect(tracks(frame)).toEqual([0, 864])
     expect(frame.dataset.rightbarFullscreen).toBeUndefined()
     expect(frame.dataset.rightbarInstant).toBe('true')
     act(() => { instance.actions.closeRightbar() })
-    expect(tracks(frame)).toEqual([280, 0])
+    expect(tracks(frame)).toEqual([0, 0])
     expect(frame.dataset.rightbarFullscreen).toBeUndefined()
     expect(frame.dataset.rightbarInstant).toBeUndefined()
   })
@@ -475,42 +479,44 @@ describe('AppFrame right panel presentation', () => {
   it('preserves normal tracks through fullscreen and hides the outer resize handle', () => {
     const { frame, instance, rightOwner } = mountFrame()
     act(() => { instance.actions.openRightbar(true, false) })
-    expect(tracks(frame)).toEqual([280, 864])
+    expect(tracks(frame)).toEqual([0, 864])
     expect(handleFor(frame, 'rightbar').style.left).toBe('1056px')
     act(() => { instance.actions.openRightbar(true, true) })
-    expect(tracks(frame)).toEqual([280, 864])
+    expect(tracks(frame)).toEqual([0, 864])
     expect(rightOwner().width).toBe(864)
     expect(frame.dataset.rightbarFullscreen).toBe('true')
     expect(frame.querySelector('[data-side="rightbar"]')).toBeNull()
     act(() => { instance.actions.openRightbar(true, false) })
-    expect(tracks(frame)).toEqual([280, 864])
+    expect(tracks(frame)).toEqual([0, 864])
     expect(handleFor(frame, 'rightbar').style.left).toBe('1056px')
     expect(frame.dataset.rightbarFullscreen).toBeUndefined()
     act(() => { instance.actions.closeRightbar() })
-    expect(tracks(frame)).toEqual([280, 0])
+    expect(tracks(frame)).toEqual([0, 0])
     expect(frame.querySelector('[data-side="rightbar"]')).toBeNull()
     expect(frame.dataset.rightbarFullscreen).toBeUndefined()
   })
 
   it('inserts a fullscreen track and its transition-suppression marker in the same render', () => {
     const { frame, instance } = mountFrame()
-    expect(tracks(frame)).toEqual([280, 0])
+    expect(tracks(frame)).toEqual([0, 0])
     expect(frame.dataset.rightbarFullscreen).toBeUndefined()
     act(() => { instance.actions.openRightbar(true, true) })
-    expect(tracks(frame)).toEqual([280, 864])
+    expect(tracks(frame)).toEqual([0, 864])
     expect(frame.dataset.rightbarFullscreen).toBe('true')
     expect(frame.querySelector('[data-side="rightbar"]')).toBeNull()
     act(() => { instance.actions.openRightbar(true, false) })
-    expect(tracks(frame)).toEqual([280, 864])
+    expect(tracks(frame)).toEqual([0, 864])
     expect(frame.dataset.rightbarFullscreen).toBeUndefined()
   })
 
   it('retains fullscreen without a track when normal columns cannot fit', () => {
-    frameWidth = 700
+    // Overlay sidebar frees the old 56px rail; below CENTER_MIN+RIGHTBAR_MIN (700)
+    // the normal track still cannot fit.
+    frameWidth = 699
     const { frame, instance, rightOwner } = mountFrame()
     act(() => { instance.actions.openRightbar(false, true) })
-    expect(tracks(frame)).toEqual([56, 0])
-    expect(rightOwner()).toEqual({ width: 0, viewportWidth: 700, canShow: false })
+    expect(tracks(frame)).toEqual([0, 0])
+    expect(rightOwner()).toEqual({ width: 0, viewportWidth: 699, canShow: false })
     expect(instance.getSnapshot().layoutInfo.rightbarShown).toBe(true)
     expect(frame.querySelector('[data-side="rightbar"]')).toBeNull()
   })
@@ -519,11 +525,12 @@ describe('AppFrame right panel presentation', () => {
     const { frame, instance, rightOwner } = mountFrame()
     act(() => { instance.actions.openRightbar(false, false) })
     resize(1100)
-    expect(tracks(frame)).toEqual([280, 0])
-    expect(rightOwner().width).toBe(420)
-    drag(handleFor(frame, 'rightbar'), 680, 690)
-    expect(instance.getSnapshot().layoutInfo.rightbar).toBe(410)
-    expect(rightOwner().width).toBe(410)
+    expect(tracks(frame)).toEqual([0, 0])
+    // Overlay sidebar: available = 1100 - 400 = 700 (was 420 with a 280px rail).
+    expect(rightOwner().width).toBe(700)
+    drag(handleFor(frame, 'rightbar'), 400, 410)
+    expect(instance.getSnapshot().layoutInfo.rightbar).toBe(690)
+    expect(rightOwner().width).toBe(690)
     expect(tracks(frame)[1]).toBe(0)
   })
 })
@@ -538,10 +545,10 @@ describe('AppFrame pointer resizing', () => {
     pointer(handle, 'pointermove', 340)
     expect(animationFrames.size).toBe(1)
     act(flushFrames)
-    expect(tracks(frame)[0]).toBe(340)
+    expect(tracks(frame)[0]).toBe(0)
     pointer(handle, 'pointermove', 360)
     act(flushFrames)
-    expect(tracks(frame)[0]).toBe(360)
+    expect(tracks(frame)[0]).toBe(0)
     pointer(handle, 'pointerup', 360)
     expect(instance.getSnapshot().layoutInfo.sidebar).toBe(360)
     expect(frame.dataset.dragging).toBeUndefined()
@@ -553,14 +560,14 @@ describe('AppFrame pointer resizing', () => {
     act(() => { instance.actions.openRightbar(true, false) })
     resize(1100)
     const handle = handleFor(frame, 'rightbar')
-    expect(rightOwner().width).toBe(420)
-    expect(tracks(frame)[1]).toBe(770)
-    expect(handle.style.left).toBe('680px')
-    drag(handle, 680, 690)
-    expect(instance.getSnapshot().layoutInfo.rightbar).toBe(410)
-    expect(rightOwner().width).toBe(410)
-    expect(tracks(frame)[1]).toBe(410)
-    expect(handle.style.left).toBe('690px')
+    expect(rightOwner().width).toBe(700)
+    expect(tracks(frame)[1]).toBe(700)
+    expect(handle.style.left).toBe('400px')
+    drag(handle, 400, 410)
+    expect(instance.getSnapshot().layoutInfo.rightbar).toBe(690)
+    expect(rightOwner().width).toBe(690)
+    expect(tracks(frame)[1]).toBe(690)
+    expect(handle.style.left).toBe('410px')
   })
 
   it('widens to the 70% limit and shrinks to 300px through pointer input', () => {

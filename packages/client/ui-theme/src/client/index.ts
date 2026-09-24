@@ -156,6 +156,37 @@ const BUILTIN_INSPECT_TOKENS: readonly ThemeTokenInspection[] = Object.freeze([
  * sensing, not presentation) and re-emits when the OS scheme flips while the
  * preference is `system`.
  */
+
+/** localStorage key for theme preference when the settings scope is memory-mode. */
+const THEME_BROWSER_STORAGE_KEY = 'dsh.ui-theme.preference'
+
+/**
+ * Read a memory-host theme preference from localStorage.
+ * Host-backed scopes ignore the browser store (Host document is authoritative).
+ */
+function readBrowserThemePreference(host: SettingsScope<ThemeSettings>): ThemePreference {
+  if (host.getSnapshot().mode !== 'memory') return DEFAULT_PREFERENCE
+  try {
+    const preference = localStorage.getItem(THEME_BROWSER_STORAGE_KEY)
+    return isThemePreference(preference) ? preference : DEFAULT_PREFERENCE
+  } catch {
+    return DEFAULT_PREFERENCE
+  }
+}
+
+/**
+ * Persist a memory-host theme preference to localStorage.
+ * Host-backed scopes write through {@link SettingsScope.set} instead.
+ */
+function saveBrowserThemePreference(host: SettingsScope<ThemeSettings>, preference: ThemePreference): void {
+  if (host.getSnapshot().mode !== 'memory') return
+  try {
+    localStorage.setItem(THEME_BROWSER_STORAGE_KEY, preference)
+  } catch {
+    // private mode / quota — preference stays session-local
+  }
+}
+
 export class ThemeRuntime {
   private readonly ctx: ClientContext
   private readonly host: ConfigForm<ThemeSettings>
@@ -177,7 +208,7 @@ export class ThemeRuntime {
   constructor(ctx: ClientContext, host: ConfigForm<ThemeSettings>) {
     this.ctx = ctx
     this.host = host
-    this.preference = DEFAULT_PREFERENCE
+    this.preference = readBrowserThemePreference(host)
     // Non-browser runs (node e2e booting the client tree) have no matchMedia.
     this.media = typeof matchMedia === 'undefined' ? undefined : matchMedia('(prefers-color-scheme: dark)')
     this.snapshot = this.buildSnapshot()
@@ -235,7 +266,10 @@ export class ThemeRuntime {
     }
     if (this.preference === id) return
     this.preference = id as ThemePreference
-    if (isThemePreference(id)) void this.host.set(THEME_PREFERENCE_FIELD, id)
+    if (isThemePreference(id)) {
+      if (this.host.getSnapshot().mode === 'memory') saveBrowserThemePreference(this.host, id)
+      else void this.host.set(THEME_PREFERENCE_FIELD, id)
+    }
     this.publish()
   }
 
