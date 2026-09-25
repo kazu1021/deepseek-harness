@@ -1,0 +1,61 @@
+name: Apply OpenCode Go per-model API fix
+
+on:
+  push:
+    branches:
+      - fix/opencode-go-per-model-api
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/opencode-go-per-model-api
+          fetch-depth: 0
+
+      - name: Patch llm-pi-ai model API resolution
+        shell: python
+        run: |
+          from pathlib import Path
+
+          catalog = Path('packages/llm/llm-pi-ai/src/catalog.ts')
+          text = catalog.read_text()
+          old = """  /** Model id sent to the provider and accepted by {@link GenerateOptions.model}. */\n  id: string\n  /** Display name for selectors; defaults to the catalog name, then the id. */"""
+          new = """  /** Model id sent to the provider and accepted by {@link GenerateOptions.model}. */\n  id: string\n  /** Wire protocol override for this model; wins over the route and installed catalog defaults. */\n  api?: string\n  /** Display name for selectors; defaults to the catalog name, then the id. */"""
+          if old not in text:
+              raise SystemExit('catalog interface anchor not found')
+          text = text.replace(old, new, 1)
+          old = "const api = request.api ?? base?.api ?? routeApi"
+          new = "const api = entry.api ?? request.api ?? base?.api ?? routeApi"
+          if old not in text:
+              raise SystemExit('catalog api resolution anchor not found')
+          text = text.replace(old, new, 1)
+          catalog.write_text(text)
+
+          config = Path('packages/llm/llm-pi-ai/src/config.ts')
+          text = config.read_text()
+          old = """const modelFields = {\n  name: z.string(),"""
+          new = """const modelFields = {\n  api: z.union(supportedProtocols()),\n  name: z.string(),"""
+          if old not in text:
+              raise SystemExit('config modelFields anchor not found')
+          text = text.replace(old, new, 1)
+          config.write_text(text)
+
+      - name: Install dependencies
+        run: corepack enable && pnpm install --frozen-lockfile
+
+      - name: Test llm-pi-ai
+        run: pnpm --filter @deepseek-ai/dsh-llm-pi-ai test
+
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/llm/llm-pi-ai/src/catalog.ts packages/llm/llm-pi-ai/src/config.ts
+          git commit -m "fix(llm-pi-ai): support per-model API overrides"
+          git push origin HEAD:fix/opencode-go-per-model-api
