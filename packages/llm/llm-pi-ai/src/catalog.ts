@@ -1,9 +1,10 @@
 /**
  * Materialization of one provider route's model catalog. The installed pi-ai
- * catalog supplies defaults keyed by model id, and a profile's own model
- * entries override them field by field, so a route naming a catalog provider
- * stays configuration-free while a route pi-ai has never heard of is fully
- * describable from `cordis.patch.yml`.
+ * catalog supplies defaults keyed by model id, local supplements fill recent
+ * entries missing from that snapshot, and a profile's own model entries
+ * override them field by field. Catalog providers stay configuration-free,
+ * while a route pi-ai has never heard of is fully describable from
+ * `cordis.patch.yml`.
  *
  * Strict resolution rejects unserviceable models before settings writes.
  * Deferred resolution retains their diagnostics so stored catalog drift does
@@ -35,6 +36,39 @@ import type {
  * reports spend — so this is the absence of a fact, not a configurable rate.
  */
 const NO_COST: ModelCost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+/**
+ * OpenRouter models advertised after the installed pi-ai model-data snapshot.
+ * Installed catalog entries take precedence by id so an upstream addition
+ * automatically replaces this fallback.
+ */
+const CATALOG_SUPPLEMENTS: Readonly<Record<string, readonly Model<Api>[]>> = {
+  openrouter: [{
+    id: 'stealth/space-bunny-alpha',
+    name: 'Space Bunny Alpha',
+    api: 'openai-completions',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    provider: 'openrouter',
+    reasoning: true,
+    thinkingLevelMap: {
+      off: null,
+      minimal: null,
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: 'xhigh',
+      max: 'max',
+    },
+    input: ['text', 'image'],
+    cost: NO_COST,
+    contextWindow: 1_000_000,
+    maxTokens: 524_288,
+    compat: {
+      supportsDeveloperRole: false,
+      thinkingFormat: 'openrouter',
+    },
+  }],
+}
 
 /** One request modality a pi-ai model may accept. */
 export type PiAiModality = Model<Api>['input'][number]
@@ -193,14 +227,18 @@ export function catalogProviderIds(): readonly string[] {
 }
 
 /**
- * The installed catalog models for one route, indexed by model id.
+ * The installed catalog and local supplement models for one route, indexed by id.
  * @param provider - provider route key.
  * @returns catalog models by id; empty for a route pi-ai does not ship.
  */
 export function catalogModels(provider: string): Map<string, Model<Api>> {
   if (!catalogProviders().has(provider)) return new Map()
   const models = getBuiltinModels(provider as BuiltinProvider) as Model<Api>[]
-  return new Map(models.map(model => [model.id, model]))
+  const byId = new Map(models.map(model => [model.id, model]))
+  for (const model of CATALOG_SUPPLEMENTS[provider] ?? []) {
+    if (!byId.has(model.id)) byId.set(model.id, model)
+  }
+  return byId
 }
 
 /**
