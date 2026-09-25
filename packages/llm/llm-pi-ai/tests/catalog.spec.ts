@@ -447,6 +447,38 @@ describe('catalog routes with per-model configuration', () => {
       .toEqual(getBuiltinModels('deepseek').map(model => model.id).sort())
   })
 
+  it('selects Space Bunny Alpha from the OpenRouter catalog supplement', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = await harness({
+      providers: {
+        openrouter: { apiKeyEnv: KEY_ENV, baseURL: `${server.url}/v1` },
+      },
+    })
+    const id = 'stealth/space-bunny-alpha'
+
+    const selectable = (await ctx.llm.listModels('openrouter')).find(model => model.id === id)
+    expect(selectable).toMatchObject({
+      provider: 'openrouter',
+      name: 'Space Bunny Alpha',
+      inputModalities: ['text', 'image'],
+    })
+    const info = await ctx.llm.resolveModelInfo('openrouter', id)
+    expect(info.context).toMatchObject({ contextWindow: 1_000_000 })
+    expect(info.reasoning?.efforts.map(effort => effort.id)).toEqual(['low', 'medium', 'high', 'xhigh', 'max'])
+
+    const result = await assemble(ctx, {
+      provider: 'openrouter',
+      model: id,
+      reasoningEffort: ReasoningEffortId('high'),
+      messages: [],
+    })
+
+    expect(result.finish).toEqual({ kind: 'stop' })
+    expect(server.paths).toEqual(['/v1/chat/completions'])
+    const request = server.requests[0] as { model: string; reasoning?: { effort?: string } }
+    expect(request).toMatchObject({ model: id, reasoning: { effort: 'high' } })
+  })
+
   it('overrides one catalog model field and defaults the rest from the catalog', async () => {
     const server = await mockServer([])
     const [catalogModel] = getBuiltinModels('deepseek')
