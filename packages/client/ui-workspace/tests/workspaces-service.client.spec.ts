@@ -45,6 +45,17 @@ function persistSelection(selection: {
   return backing
 }
 
+/** Stubs the browser location the Service reads at construction, recording every history replacement. */
+function stubLocation(href: string): string[] {
+  const url = new URL(href)
+  const written: string[] = []
+  vi.stubGlobal('location', { href: url.href, search: url.search, pathname: url.pathname, hash: url.hash })
+  vi.stubGlobal('history', {
+    replaceState: (_state: unknown, _unused: string, target: string) => { written.push(target) },
+  })
+  return written
+}
+
 function workspace(
   id: string,
   sessionIds: readonly SessionId[] = [],
@@ -801,6 +812,50 @@ describe('UiWorkspaceService', () => {
     })
     expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
     expect(b.sessions.create).not.toHaveBeenCalled()
+  })
+
+  it('restores the URL Session instead of the shared stored record', () => {
+    const written = stubLocation('http://127.0.0.1:3080/?session=url-session')
+    persistSelection({ sessionId: sid('other-tab') })
+    const b = bench({
+      sessions: sessionState([summary('url-session'), summary('other-tab')]),
+      workspaces: workspaceState(),
+    })
+
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('url-session'), { source: 'mainView' })
+    expect(written).toEqual(['/?session=url-session'])
+  })
+
+  it('restores a subagent address named by the URL', () => {
+    stubLocation('http://127.0.0.1:3080/?session=child&parent=parent')
+    const b = bench({ sessions: sessionState(), workspaces: workspaceState() })
+
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith({
+      parentSessionId: sid('parent'),
+      childSessionId: sid('child'),
+      mode: 'unknown',
+    }, { source: 'mainView' })
+  })
+
+  it('falls back to the stored record when the URL names an unlisted Session', () => {
+    stubLocation('http://127.0.0.1:3080/?session=deleted')
+    persistSelection({ sessionId: sid('saved') })
+    const b = bench({
+      sessions: sessionState([summary('saved')]),
+      workspaces: workspaceState(),
+    })
+
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('saved'), { source: 'mainView' })
+  })
+
+  it('records each opened Session in the URL and drops it when the selection clears', () => {
+    const written = stubLocation('http://127.0.0.1:3080/?session=first')
+    const b = bench()
+
+    b.uiWorkspace.openSession(sid('second'))
+    b.workspaces.list.set(workspaceState([], [sid('second')]))
+
+    expect(written).toEqual(['/?session=second', '/'])
   })
 
   it('reclaims the saved blank before opening history, even when another blank is listed first', async () => {

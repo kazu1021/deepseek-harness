@@ -20,6 +20,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { RowToast } from './contract/slots.ts'
 import { en, zh } from './locales.ts'
 import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
+import { readSelectionFromUrl, writeSelectionToUrl, type UrlSelection } from './selection-url.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
 
 interface MainSelection {
@@ -131,6 +132,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
   private mainReference: SessionReference | undefined
+  /** The URL selection read once at startup, so a later URL edit cannot retarget a running restore. */
+  private readonly urlSelection: UrlSelection | undefined = readSelectionFromUrl()
 
   /**
    * @param ctx - Client root Context.
@@ -316,7 +319,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   private async restoreSelection(workspaces: WorkspaceSnapshot, sessions: SessionListState): Promise<void> {
-    const saved = this.selection.getSnapshot()
+    const saved = this.startupSelection(sessions)
     if (saved.subagentAddress !== undefined) {
       this.replaceMain(saved.subagentAddress, this.lifetime.signal, 'preserve')
       return
@@ -346,6 +349,21 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     }
   }
 
+  /**
+   * The selection startup opens: the URL's Session when it names one the
+   * Session list knows, else the stored record. A URL naming a Session this
+   * Host no longer lists falls through to the record, so a stale link does not
+   * discard the tab's own last Session.
+   */
+  private startupSelection(sessions: SessionListState): MainSelection {
+    const named = this.urlSelection
+    if (named === undefined) return this.selection.getSnapshot()
+    if (named.subagentAddress === undefined && sessions.byId[named.sessionId] === undefined) {
+      return this.selection.getSnapshot()
+    }
+    return named
+  }
+
   private async initializeDefaultWorkspace(signal: AbortSignal): Promise<WorkspaceView | undefined> {
     const language = this.ctx.locale.getSnapshot().active.toLowerCase().split('-')[0]
     const title = (language === 'zh' ? zh : en)['defaultWorkspace.title']
@@ -373,6 +391,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const previous = this.mainReference
     this.mainReference = undefined
     this.selection.set({})
+    writeSelectionToUrl(undefined)
     previous?.release()
     this.ctx.layout.selectPanel(null)
   }
@@ -395,10 +414,12 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const subagentAddress = typeof target === 'string'
         ? this.sessions.subagentAddress(reference.sessionId)
         : target
-      this.selection.set({
+      const selection: MainSelection = {
         sessionId: reference.sessionId,
         ...(subagentAddress === undefined ? {} : { subagentAddress }),
-      })
+      }
+      this.selection.set(selection)
+      writeSelectionToUrl(selection)
     } catch (error: unknown) {
       reference.release()
       throw error
