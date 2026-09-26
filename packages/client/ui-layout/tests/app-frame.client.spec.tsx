@@ -253,6 +253,38 @@ describe('AppFrame', () => {
     expect(frame.querySelector('[data-shell-leading-band]')).toBeNull()
   })
 
+  it('shows its own reopen control only while the sidebar is collapsed', () => {
+    const { frame, instance } = mountFrame()
+    const reopen = () => frame.querySelector<HTMLButtonElement>('button[aria-label="sidebar.toggle.open"]')
+    // The open overlay carries the sidebar's own close control.
+    expect(reopen()).toBeNull()
+    act(() => { instance.actions.toggleSidebar() })
+    expect(reopen()).not.toBeNull()
+    act(() => { reopen()?.click() })
+    expect(instance.getSnapshot().layoutInfo.sidebar).toBe(280)
+    expect(reopen()).toBeNull()
+  })
+
+  it('defers the reopen control to the darwin and Windows desktop seats', () => {
+    document.documentElement.dataset.platform = 'darwin'
+    try {
+      const darwin = mountFrame()
+      act(() => { darwin.instance.actions.toggleSidebar() })
+      expect(darwin.frame.querySelector('button[aria-label="sidebar.toggle.open"]')).toBeNull()
+    } finally {
+      delete document.documentElement.dataset.platform
+      cleanup()
+    }
+    document.documentElement.setAttribute('data-windows-titlebar', '')
+    try {
+      const windows = mountFrame()
+      act(() => { windows.instance.actions.toggleSidebar() })
+      expect(windows.frame.querySelector('button[aria-label="sidebar.toggle.open"]')).toBeNull()
+    } finally {
+      document.documentElement.removeAttribute('data-windows-titlebar')
+    }
+  })
+
   it('mounts the shell.leading seat only while the darwin collapse hides the column', () => {
     document.documentElement.dataset.platform = 'darwin'
     const { frame, instance, sidebarOwner, queryByTestId } = mountFrame()

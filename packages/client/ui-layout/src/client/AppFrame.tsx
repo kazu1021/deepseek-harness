@@ -182,8 +182,11 @@ export function AppFrame({
     : layoutInfo.sidebar === 0 ? SIDEBAR_DEFAULT : layoutInfo.sidebar
   const rightbarPreference = layoutInfo.rightbar ?? viewport * RIGHTBAR_DEFAULT_RATIO
   // Desktop reopen controls occupy the frame's shell.leading seat (macOS) or
-  // the Windows caption row; neither platform keeps an icon rail.
+  // the Windows caption row; neither platform keeps an icon rail. Plain web
+  // and the Linux desktop have neither seat, so the frame owns the collapsed
+  // sidebar's reopen control (css.menuButton) for them.
   const darwin = document.documentElement.dataset.platform === 'darwin'
+  const windowsTitlebar = document.documentElement.hasAttribute('data-windows-titlebar')
   // Opening on a narrow frame collapses the left sidebar. Eligibility must
   // include that space before the occupant's first shown report arrives.
   // Overlay sidebar: column solve always gets 0 sidebar track width so the
@@ -314,13 +317,27 @@ export function AppFrame({
         <button
           type="button"
           className={css.sidebarBackdrop}
-          aria-label="サイドバーを閉じる"
+          aria-label={t('sidebar.toggle.close')}
           onClick={() => { actions.toggleSidebar() }}
         />
       )}
       <div className={css.overlayLayer} data-shell-overlay>
         {overlays}
       </div>
+      {/* The open overlay carries the sidebar's own close control, and the two
+          desktop seats carry their own reopen control; this button exists only
+          while the sidebar is collapsed on a platform with neither seat. */}
+      {!darwin && !windowsTitlebar && sidebarCollapsed && (
+        <button
+          type="button"
+          className={css.menuButton}
+          title={t('sidebar.toggle.open')}
+          aria-label={t('sidebar.toggle.open')}
+          onClick={() => { actions.toggleSidebar() }}
+        >
+          ☰
+        </button>
+      )}
       {leadingMounted && (
         <div className={css.leadingSeat} data-shell-leading>
           {leading}
