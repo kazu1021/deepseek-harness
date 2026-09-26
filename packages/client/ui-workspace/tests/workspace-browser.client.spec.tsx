@@ -106,6 +106,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
   const props: WorkspaceBrowserProps = {
     wide: true,
     expandSidebar: vi.fn(),
+    closeSidebar: vi.fn(),
     useSessions: hook(sessionState([])),
     useSessionStatus: hook(noPendingInteraction),
     useSessionRetainInfo: () => undefined,
@@ -1086,19 +1087,52 @@ describe('WorkspaceBrowser', () => {
   it.each(['show', 'only'] as const)('does not open an archived row in the %s filter; it raises the not-openable notice instead', (filter) => {
     const open = vi.fn()
     const notifyArchivedNotOpenable = vi.fn()
+    const closeSidebar = vi.fn()
     const b = mount({
       useSessions: hook(sessionState([summary('gone', 1)])),
       useWorkspaces: hook(workspaceState([workspace('alpha', ['gone'])], [sid('gone')])),
       open,
       notifyArchivedNotOpenable,
+      closeSidebar,
     })
     act(() => { b.store.actions.setArchivedFilter(filter) })
     fireEvent.click(screen.getByText('alpha'))
     fireEvent.click(screen.getByText('gone'))
     expect(open).not.toHaveBeenCalled()
     expect(notifyArchivedNotOpenable).toHaveBeenCalledOnce()
+    // The refused navigation keeps the overlaid column open for another choice.
+    expect(closeSidebar).not.toHaveBeenCalled()
     expect(screen.getByText('gone').closest('[role="treeitem"]')?.getAttribute('aria-description'))
       .toBe('已归档对话暂时无法查看，请取消归档后查看')
+  })
+
+  it('folds the overlaid column once the chosen Session opens', () => {
+    const open = vi.fn()
+    const closeSidebar = vi.fn()
+    mount({
+      useSessions: hook(sessionState([summary('live', 1)])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['live'])])),
+      open,
+      closeSidebar,
+    })
+    fireEvent.click(screen.getByText('alpha'))
+    fireEvent.click(screen.getByText('live'))
+    expect(open).toHaveBeenCalledWith(sid('live'))
+    expect(closeSidebar).toHaveBeenCalledOnce()
+  })
+
+  it('folds the overlaid column after a Workspace create action starts a Session', () => {
+    const startSession = vi.fn()
+    const closeSidebar = vi.fn()
+    mount({
+      useSessions: hook(sessionState([])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', [])])),
+      startSession,
+      closeSidebar,
+    })
+    fireEvent.click(screen.getByRole('button', { name: '在“alpha”中新建会话' }))
+    expect(startSession).toHaveBeenCalledWith(wid('alpha'))
+    expect(closeSidebar).toHaveBeenCalledOnce()
   })
 
   it('does not open an archived search result or clear its query; it raises the not-openable notice instead', async () => {

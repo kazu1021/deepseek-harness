@@ -97,6 +97,12 @@ export function SidebarRoot({
   renderSlot,
 }: SidebarRootComponentProps) {
   const panels = usePanels(snapshot => snapshot)
+  // The sidebar paints over the main panel, so a navigation chosen inside it
+  // has to fold the column away again; a collapsed column (the rail or a
+  // hidden overlay) stays as it is.
+  const closeSidebar = (): void => {
+    if (!collapsed) toggleSidebar()
+  }
   // Wide content stays mounted while the collapse animates (fading via
   // .collapsed .wide), unmounts at settle, and remounts right away on expand.
   const [settled, setSettled] = useState(collapsed)
@@ -241,7 +247,7 @@ export function SidebarRoot({
                 type="button"
                 className={clsx(css.brand, css.wide)}
                 aria-label={t('session.new.label')}
-                onClick={() => { startSession() }}
+                onClick={() => { startSession(); closeSidebar() }}
               >
                 {identity}
               </button>
@@ -256,7 +262,7 @@ export function SidebarRoot({
           type="button"
           className={css.newSession}
           aria-label={t('session.new.label')}
-          onClick={() => { startSession() }}
+          onClick={() => { startSession(); closeSidebar() }}
         >
           {/* The rail draws Regular: Medium's 1.3px stroke scaled to the rail's
               larger glyph reads visibly heavier than the neighboring 1px icons. */}
@@ -289,6 +295,7 @@ export function SidebarRoot({
         {renderSlot('sidebar.workspaces', {
           wide,
           expandSidebar: () => { if (collapsed) toggleSidebar() },
+          closeSidebar,
         })}
       </div>
 

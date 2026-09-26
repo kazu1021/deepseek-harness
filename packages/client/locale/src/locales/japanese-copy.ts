@@ -41,6 +41,8 @@ export const JAPANESE_COPY: JapaneseCopy = Object.freeze({
     'collapse': '折りたたむ',
     'expand': '展開',
     'back': '戻る',
+    'sidebar.toggle.open': 'サイドバーを開く',
+    'sidebar.toggle.close': 'サイドバーを閉じる',
     'brand.localBuild': 'DSH ローカルビルド',
     'unknown': '不明',
     'none': 'なし',

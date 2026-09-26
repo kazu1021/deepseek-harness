@@ -100,13 +100,23 @@ describe('SidebarRoot shell', () => {
     const b = mountShell()
     expect(screen.getByTestId('custom-brand-mark')).toBeTruthy()
     expect(screen.getByTestId('custom-brand-name')).toBeTruthy()
-    // Expanded, both the wordmark and the capsule start a session.
+    // Expanded, both the wordmark and the capsule start a session and fold the
+    // overlaid column so the started session is visible.
     const starters = screen.getAllByRole('button', { name: 'New session' })
     expect(starters).toHaveLength(2)
     for (const button of starters) fireEvent.click(button)
     expect(b.startSession).toHaveBeenCalledTimes(2)
+    expect(b.toggleSidebar).toHaveBeenCalledTimes(2)
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
-    expect(b.toggleSidebar).toHaveBeenCalledOnce()
+    expect(b.toggleSidebar).toHaveBeenCalledTimes(3)
+  })
+
+  it('leaves the collapsed rail alone when New Session or the region commits a navigation', () => {
+    const b = mountShell({ collapsed: true })
+    b.regionOwner().closeSidebar()
+    fireEvent.click(screen.getByRole('button', { name: 'New session' }))
+    expect(b.startSession).toHaveBeenCalledOnce()
+    expect(b.toggleSidebar).not.toHaveBeenCalled()
   })
 
   it('renders generic brand fallbacks when no package fills the slots', () => {
@@ -170,6 +180,9 @@ describe('SidebarRoot shell', () => {
     // Expanded: the request is a no-op (no accidental collapse).
     b.regionOwner().expandSidebar()
     expect(b.toggleSidebar).not.toHaveBeenCalled()
+    // Expanded: the region's own close request folds the overlaid column.
+    b.regionOwner().closeSidebar()
+    expect(b.toggleSidebar).toHaveBeenCalledOnce()
   })
 
   it('keeps the region mounted through collapse and expands on its request', () => {

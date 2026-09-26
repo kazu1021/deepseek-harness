@@ -92,6 +92,12 @@ export interface SidebarSectionOwnerProps {
   wide: boolean
   /** Rail icons request expansion; the browser rides the wide flip for focus. */
   expandSidebar: () => void
+  /**
+   * Sidebar is an overlay: the browser requests the open column to close after
+   * choosing a Session or starting one, so the revealed panel is not covered.
+   * No-op while the column is already collapsed.
+   */
+  closeSidebar: () => void
 }
 
 /**

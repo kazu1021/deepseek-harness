@@ -31,6 +31,8 @@ export const zh = {
   'collapse': '收起',
   'expand': '展开',
   'back': '返回',
+  'sidebar.toggle.open': '展开侧边栏',
+  'sidebar.toggle.close': '收起侧边栏',
   'brand.localBuild': 'DSH 本地构建',
   'unknown': '未知',
   'none': '无',

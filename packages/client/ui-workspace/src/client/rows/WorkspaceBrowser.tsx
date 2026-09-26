@@ -809,6 +809,7 @@ export function WorkspaceBrowser({
   wide,
   usePanelInfo,
   expandSidebar,
+  closeSidebar,
   useSessions,
   useSessionStatus,
   useWorkspaces,
@@ -856,6 +857,13 @@ export function WorkspaceBrowser({
       return
     }
     open(sessionId)
+    closeSidebar()
+  }
+  // New Session is reachable from the shell button and from a Workspace row's
+  // create action; both reveal the main panel, so both fold the overlay column.
+  const startSessionFromSidebar = (workspaceId?: WorkspaceId): void => {
+    startSession(workspaceId)
+    closeSidebar()
   }
   const workspaceReady = workspacePhase === 'ready' && workspaceStreamState !== 'loading'
   const mainSessionId = Object.values(list.byId)
@@ -988,6 +996,7 @@ export function WorkspaceBrowser({
     setQuery('')
     setSearchExpanded(false)
     open(sessionId)
+    closeSidebar()
   }
   const acknowledgeSessionReveal = (sessionId: SessionId): void => {
     setRevealSessionId(current => current === sessionId ? undefined : current)
@@ -1248,7 +1257,7 @@ export function WorkspaceBrowser({
           side="right"
           onPick={(workspaceId) => {
             setWsPickerOpen(false)
-            startSession(workspaceId)
+            startSessionFromSidebar(workspaceId)
           }}
           onClose={() => { setWsPickerOpen(false) }}
         />
@@ -1327,7 +1336,7 @@ export function WorkspaceBrowser({
                 setGroupExpanded={actions.setGroupExpanded}
                 setSessionOrder={saveSessionOrder}
                 rowState={rowState}
-                startSession={startSession}
+                startSession={startSessionFromSidebar}
                 open={guardedOpen}
                 insertWorkspaceBefore={insertWorkspaceBefore}
                 revealSessionId={revealSessionId}
