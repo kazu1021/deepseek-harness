@@ -15,7 +15,7 @@
  * shares — zero cordis or framework imports, zero self-made hooks.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { PointerEventHandler, ReactNode } from 'react'
 import type {
   PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
@@ -32,8 +32,8 @@ export type AppFrameProps =
   & PropsLocale<'common'>
 
 /** Center column grid item (session-body building block). */
-function CenterColumn(props: { children?: ReactNode }) {
-  return <div className={css.centerCol}>{props.children}</div>
+function CenterColumn(props: { children?: ReactNode; onPointerDownCapture?: PointerEventHandler<HTMLDivElement> }) {
+  return <div className={css.centerCol} onPointerDownCapture={props.onPointerDownCapture}>{props.children}</div>
 }
 
 /** Subscribe to the main key without subscribing the column frame to each panel id. */
@@ -65,8 +65,8 @@ function ConversationMarker({ usePanelInfo, frameRef }: Pick<PropsRuntime<'root'
  * occupant's panel is positioned against the column's right edge, which never
  * moves, so it can hang over the centre when there is no track.
  */
-function RightbarColumn(props: { children?: ReactNode }) {
-  return <div className={css.rightbarCol} data-rightbar-col>{props.children}</div>
+function RightbarColumn(props: { children?: ReactNode; onPointerDownCapture?: PointerEventHandler<HTMLDivElement> }) {
+  return <div className={css.rightbarCol} data-rightbar-col onPointerDownCapture={props.onPointerDownCapture}>{props.children}</div>
 }
 
 /**
@@ -187,6 +187,15 @@ export function AppFrame({
   // sidebar's reopen control (css.menuButton) for them.
   const darwin = document.documentElement.dataset.platform === 'darwin'
   const windowsTitlebar = document.documentElement.hasAttribute('data-windows-titlebar')
+  // The open overlay's dismiss gesture: a pointer-down on the main panel folds
+  // the column WITHOUT consuming the event, so the click still reaches the
+  // control (or the composer) it was aimed at. The dimming layer itself carries
+  // no pointer events (AppFrame.module.css), which is what keeps the first
+  // keystroke in the composer instead of losing the click to a full-frame
+  // backdrop.
+  const dismissOverlaySidebar = useCallback((): void => {
+    if (!sidebarCollapsed) actions.toggleSidebar()
+  }, [sidebarCollapsed, actions])
   // Opening on a narrow frame collapses the left sidebar. Eligibility must
   // include that space before the occupant's first shown report arrives.
   // Overlay sidebar: column solve always gets 0 sidebar track width so the
@@ -308,19 +317,12 @@ export function AppFrame({
         {sidebar}
       </div>
       <>
-        <CenterColumn>{main}</CenterColumn>
-        <RightbarColumn>
+        <CenterColumn onPointerDownCapture={dismissOverlaySidebar}>{main}</CenterColumn>
+        <RightbarColumn onPointerDownCapture={dismissOverlaySidebar}>
           {renderSlot('rightbar', { width: normal.rightbar, viewportWidth: viewport, canShow: normal.rightbar > 0 })}
         </RightbarColumn>
       </>
-      {!sidebarCollapsed && (
-        <button
-          type="button"
-          className={css.sidebarBackdrop}
-          aria-label={t('sidebar.toggle.close')}
-          onClick={() => { actions.toggleSidebar() }}
-        />
-      )}
+      {!sidebarCollapsed && <div className={css.sidebarBackdrop} data-shell-sidebar-backdrop aria-hidden />}
       <div className={css.overlayLayer} data-shell-overlay>
         {overlays}
       </div>

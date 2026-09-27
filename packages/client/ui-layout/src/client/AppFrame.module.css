@@ -78,14 +78,17 @@
   pointer-events: none;
 }
 
+/* Visual dim only, never a hit target: the open overlay must not swallow the
+   click that was meant for the panel underneath (the composer's first
+   keystroke landed nowhere because this layer took the click and left focus on
+   body). The frame dismisses the overlay from the column's own capture
+   handler, which does not consume the event. */
 .sidebarBackdrop {
   z-index: 20;
   position: absolute;
   inset: 0;
-  padding: 0;
-  border: 0;
-  cursor: default;
   background: rgba(0, 0, 0, 0.32);
+  pointer-events: none;
 }
 
 .frame:not([data-sidebar-collapsed]) .handle[data-side=sidebar] {

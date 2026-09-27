@@ -265,6 +265,26 @@ describe('AppFrame', () => {
     expect(reopen()).toBeNull()
   })
 
+  it('dismisses the open overlay from a main-panel pointer-down without consuming it', () => {
+    const { frame, instance, getByTestId } = mountFrame()
+    // The open overlay dims the panel but is not a hit target: the frame's
+    // column capture handler folds it, and the pointer-down keeps travelling to
+    // the control the user aimed at (the composer used to lose the click, and
+    // with it the first keystroke, to a full-frame backdrop).
+    expect(instance.getSnapshot().layoutInfo.sidebar).toBe(280)
+    const backdrop = frame.querySelector('[data-shell-sidebar-backdrop]')
+    expect(backdrop).not.toBeNull()
+    expect(backdrop?.tagName).not.toBe('BUTTON')
+    const main = getByTestId('main-content')
+    const pointerDown = new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, clientX: 100 })
+    act(() => { main.dispatchEvent(pointerDown) })
+    expect(instance.getSnapshot().layoutInfo.sidebar).toBe(0)
+    expect(backdrop?.isConnected).toBe(false)
+    // The dismissal never preventDefaults, so the same pointer-down would still
+    // focus the composer underneath.
+    expect(pointerDown.defaultPrevented).toBe(false)
+  })
+
   it('defers the reopen control to the darwin and Windows desktop seats', () => {
     document.documentElement.dataset.platform = 'darwin'
     try {
