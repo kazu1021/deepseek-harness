@@ -94,11 +94,14 @@
   display: flex;
   flex-direction: column;
   /* Let the visible pane's rows set the card width, but keep pathological ids
-     and narrow screens inside a bounded card where ellipsis remains. */
+     and narrow screens inside a bounded card where ellipsis remains. The
+     component publishes the area the user can actually see (a phone that
+     pinched, panned, or opened its keyboard sees less than 100vw/100vh
+     describe); without that pair these stay the design caps. */
   width: max-content;
-  min-width: min(240px, calc(100vw - 32px));
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: min(360px, calc(100vh - 96px));
+  min-width: min(240px, calc(100vw - 32px), var(--dsh-model-menu-visible-width, 100vw));
+  max-width: min(420px, calc(100vw - 32px), var(--dsh-model-menu-visible-width, 100vw));
+  max-height: min(360px, calc(100vh - 96px), var(--dsh-model-menu-visible-height, 100vh));
   overflow: hidden;
   padding: 3px;
   /* Surface tokens match the Menu primitive card (ui-primitives

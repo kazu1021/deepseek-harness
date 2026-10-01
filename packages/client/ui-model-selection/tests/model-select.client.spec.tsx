@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -244,6 +244,50 @@ describe('ModelSelect reasoning effort', () => {
     } finally {
       Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidth)
       Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight)
+    }
+  })
+
+  it('places the card inside the visible area a phone browser pinched and panned away from the layout viewport', () => {
+    const offsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')!
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!
+    const visualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport')
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 400 })
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 300 })
+    // What a zoomed-in phone leaves behind: the layout viewport keeps its full
+    // width while the visible window is a panned slice of it.
+    const view = Object.assign(new EventTarget(), { offsetLeft: 150, offsetTop: 40, width: 200, height: 500, scale: 2 })
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: view })
+    try {
+      render(<ModelSelect
+        locked={false}
+        available
+        directory={createSnapshotStore(state())}
+        load={vi.fn()}
+        select={vi.fn().mockResolvedValue({ ok: true, value: undefined })}
+        t={t}
+      />)
+      fireEvent.click(screen.getByRole('button', { name: /选择模型/ }))
+      const menu = screen.getByRole('menu')
+      // Clamped to the visible slice (150..350), not to the layout viewport:
+      // the 400px card is told to fit 176px and its left edge lands 12px inside.
+      expect(menu.style.getPropertyValue('--dsh-model-menu-visible-width')).toBe('176px')
+      expect(menu.style.left).toBe('162px')
+      expect(menu.style.top).toBe('52px')
+      // Panning the visible window re-places the open card without a resize.
+      act(() => {
+        Object.assign(view, { offsetLeft: 60, offsetTop: 0 })
+        view.dispatchEvent(new Event('scroll'))
+      })
+      expect(menu.style.left).toBe('72px')
+      expect(menu.style.top).toBe('12px')
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidth)
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight)
+      if (visualViewport === undefined) {
+        Reflect.deleteProperty(window, 'visualViewport')
+      } else {
+        Object.defineProperty(window, 'visualViewport', visualViewport)
+      }
     }
   })
 

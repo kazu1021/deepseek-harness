@@ -45,6 +45,12 @@ interface EffortChoice {
 /** Unplaced portal card: hidden but laid out at a fixed origin so offsetWidth/offsetHeight are real (Menu primitive's measure pass). */
 const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
 
+/** Placed card: its position plus the visible-area bounds the stylesheet clamps its width and height to. */
+type MenuPlacement = CSSProperties & {
+  '--dsh-model-menu-visible-width': string
+  '--dsh-model-menu-visible-height': string
+}
+
 /**
  * Render the composer model seat.
  * @param props - owner share (locked) + injected face (shared directory
@@ -71,7 +77,7 @@ export function ModelSelect(
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const [menuPos, setMenuPos] = useState<CSSProperties | null>(null)
+  const [menuPos, setMenuPos] = useState<MenuPlacement | null>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const id = useId()
 
@@ -167,22 +173,49 @@ export function ModelSelect(
       const rect = triggerRef.current?.getBoundingClientRect()
       if (rect === undefined) return
       const MARGIN = 12
-      const lw = menuRef.current?.offsetWidth ?? 0
-      const lh = menuRef.current?.offsetHeight ?? 0
+      // The visible area, not the layout viewport: a phone browser pinches,
+      // pans, and resizes the piece of the page the user can see (zoom, the
+      // browser chrome, the on-screen keyboard), and a portaled card placed
+      // against the layout viewport then lands off that piece — a model list
+      // hanging off the left edge, unreachable. The window's own size is the
+      // fallback for the engines with no visual viewport.
+      const view = window.visualViewport
+      const left = view?.offsetLeft ?? 0
+      const top = view?.offsetTop ?? 0
+      const width = view?.width ?? window.innerWidth
+      const height = view?.height ?? window.innerHeight
+      // The card's own bounds follow the visible area (the stylesheet keeps
+      // the design caps), so the clamps below keep a legal range even where
+      // the visible slice is narrower than the card would be.
+      const fitWidth = width - 2 * MARGIN
+      const fitHeight = height - 2 * MARGIN
+      const lw = Math.min(menuRef.current?.offsetWidth ?? 0, fitWidth)
+      const lh = Math.min(menuRef.current?.offsetHeight ?? 0, fitHeight)
       let x = rect.right - lw
       let y = rect.top - 8 - lh
-      if (lw > 0) x = Math.min(Math.max(x, MARGIN), window.innerWidth - lw - MARGIN)
-      if (lh > 0) y = Math.min(Math.max(y, MARGIN), window.innerHeight - lh - MARGIN)
-      setMenuPos({ left: x, top: y })
+      if (lw > 0) x = Math.min(Math.max(x, left + MARGIN), left + width - lw - MARGIN)
+      if (lh > 0) y = Math.min(Math.max(y, top + MARGIN), top + height - lh - MARGIN)
+      setMenuPos({
+        left: x,
+        top: y,
+        '--dsh-model-menu-visible-width': `${Math.max(fitWidth, 0)}px`,
+        '--dsh-model-menu-visible-height': `${Math.max(fitHeight, 0)}px`,
+      })
     }
     // First run measures the hidden pre-render (same commit as `open`), so
     // the card lands placed before anything paints.
     place()
+    const view = window.visualViewport
     window.addEventListener('scroll', place, true)
     window.addEventListener('resize', place)
+    // Zoom and the keyboard move the visible area without a window resize.
+    view?.addEventListener('resize', place)
+    view?.addEventListener('scroll', place)
     return () => {
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
+      view?.removeEventListener('resize', place)
+      view?.removeEventListener('scroll', place)
     }
   }, [open, pane, state])
   /* jscpd:ignore-end */
